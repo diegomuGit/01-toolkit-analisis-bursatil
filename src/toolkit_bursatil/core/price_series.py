@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from toolkit_bursatil.core.montecarlo import MonteCarloSimulacion
 
 
 @dataclass
@@ -35,38 +36,13 @@ class PriceSeries:
     # ============================================================
 
     def _prepare_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Estandariza columnas: aplanar MultiIndex, pasar a minúsculas y ordenar."""
-    
+        """Verifica que los datos tengan las columnas necesarias y estén ordenados."""
         df = df.copy()
-
-        # Si las columnas son MultiIndex (como en yfinance)
-        if isinstance(df.columns, pd.MultiIndex):
-            level_names = list(df.columns.names)
-
-            # Caso 1: niveles ('Price', 'Ticker') -> queremos el de precios
-            if "Price" in level_names and "Ticker" in level_names:
-                df.columns = df.columns.get_level_values("Price")
-
-            # Caso 2: niveles ('Ticker', 'Price') -> también lo manejamos
-            elif "Ticker" in level_names and "Price" in level_names[::-1]:
-                df.columns = df.columns.get_level_values("Price")
-
-            # Si no tiene nombres claros, cogemos siempre el último nivel
-            else:
-                df.columns = df.columns.get_level_values(-1)
-
-        # Normalizar nombres
         df.columns = [c.lower().strip() for c in df.columns]
-
-        # Validar que existe la columna 'close'
         if "close" not in df.columns:
-            raise ValueError(
-                f"El DataFrame no contiene columna 'close'. Columnas detectadas: {df.columns.tolist()}"
-            )
+            raise ValueError(f"Falta la columna 'close'.")
+        return df.sort_index()
 
-        # Ordenar por fecha (por si viene descendente)
-        df = df.sort_index()
-        return df
 
 
     # ============================================================
@@ -103,3 +79,34 @@ class PriceSeries:
         print(f" Media diaria: {self.mean:.6f}")
         print(f" Desv. típica diaria: {self.std:.6f}")
         print("═════════════════════════════════════════════")
+
+    def simular_montecarlo(
+        self,
+        n_sim: int = 1000,
+        horizonte: int = 252,
+        valor_inicial: float | None = None,
+        tipo_retornos: str = "log",
+        seed: int | None = None,
+    ):
+        """Ejecuta una simulación Monte Carlo sobre esta serie de precios."""
+        if valor_inicial is None:
+            valor_inicial = float(self.data["close"].iloc[-1])
+
+        sim = MonteCarloSimulacion(
+            objeto=self,
+            n_sim=n_sim,
+            horizonte=horizonte,
+            valor_inicial=valor_inicial,
+            tipo_retornos=tipo_retornos,
+            seed=seed,
+        )
+        resultados = sim.ejecutar()
+        self.simulacion = sim
+        return resultados
+
+
+    def mostrar_simulacion(self, n: int = 50):
+        """Muestra la simulación Monte Carlo de la serie."""
+        if not hasattr(self, "simulacion"):
+            raise ValueError("Primero debes ejecutar .simular_montecarlo()")
+        self.simulacion.graficar(n)
