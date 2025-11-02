@@ -113,3 +113,9 @@ class Portfolio:
         if not hasattr(self, "simulacion"):
             raise ValueError("Primero debes ejecutar .simular_montecarlo()")
         self.simulacion.graficar(n)
+
+    def mostrar_simulacion_seaborn(self, n: int = 50):
+        """Muestra visualmente los resultados de la última simulación."""
+        if not hasattr(self, "simulacion"):
+            raise ValueError("Primero debes ejecutar .simular_montecarlo()")
+        self.simulacion.graficar_seaborn(n)

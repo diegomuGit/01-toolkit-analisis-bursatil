@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 from toolkit_bursatil.core.price_series import PriceSeries
 from toolkit_bursatil.core.portfolio import Portfolio
 
@@ -168,3 +169,63 @@ class MonteCarloSimulacion:
         plt.xlabel("Días")
         plt.ylabel("Valor simulado")
         plt.show()
+
+
+    def graficar_seaborn(self, n: int = 50):
+        """
+        Visualiza trayectorias Monte Carlo (izquierda) y distribución de retornos logarítmicos (derecha).
+        Muestra la media de los caminos y la curva teórica normal sobre los retornos.
+        """
+        if self.resultados is None:
+            raise ValueError("Primero debes ejecutar .ejecutar()")
+
+        # --- Selección de caminos ---
+        n_sim = self.resultados.shape[1]
+        n_a_mostrar = min(n, n_sim)
+        caminos = self.resultados.sample(n=n_a_mostrar, axis=1)
+
+        # --- Crear figura con 2 subplots (paths + distribución de retornos) ---
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6), gridspec_kw={'width_ratios': [2, 1]})
+        plt.suptitle("Simulación Monte Carlo - Trayectorias y Distribución de Retornos", fontsize=14, weight="bold")
+
+        # ====== 1️⃣ Panel Izquierdo: Paths ======
+        ax1 = axes[0]
+        sns.lineplot(data=caminos, ax=ax1, alpha=0.25, linewidth=1, legend=False)
+
+        # Calcular y trazar la media en magenta
+        mean_path = caminos.mean(axis=1)
+        sns.lineplot(x=mean_path.index, y=mean_path.values, ax=ax1, color="magenta", linewidth=2.5, label="Media")
+
+        ax1.set_title("Trayectorias simuladas", fontsize=12)
+        ax1.set_xlabel("Días")
+        ax1.set_ylabel("Valor simulado")
+        ax1.grid(True, alpha=0.3)
+        ax1.legend()
+
+        # ====== 2️⃣ Panel Derecho: Distribución de retornos ======
+        ax2 = axes[1]
+        valores_finales = caminos.iloc[-1, :]
+        s0 = caminos.iloc[0, 0]
+
+        # Retornos logarítmicos finales
+        retornos_log = np.log(valores_finales / s0)
+
+        # Histograma con KDE
+        sns.histplot(retornos_log, ax=ax2, kde=True, color="limegreen", stat="density", bins=20, edgecolor="black", alpha=0.6)
+
+        # Curva normal teórica sobre el histograma
+        from scipy.stats import norm
+        mu, sigma = retornos_log.mean(), retornos_log.std()
+        x = np.linspace(retornos_log.min(), retornos_log.max(), 200)
+        ax2.plot(x, norm.pdf(x, mu, sigma), color="magenta", linewidth=2, label="Normal teórica")
+
+        ax2.set_title("Distribución de retornos logarítmicos finales", fontsize=12)
+        ax2.set_xlabel("Retorno logarítmico")
+        ax2.set_ylabel("Densidad")
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plt.show()
+
+
