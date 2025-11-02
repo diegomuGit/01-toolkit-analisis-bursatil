@@ -18,6 +18,7 @@ class MonteCarloSimulacion:
     tipo_retornos: str = "log"   # 'log' o 'simple'
     seed: int | None = None
 
+
     def ejecutar(self) -> pd.DataFrame:
         """
         Ejecuta la simulación de Monte Carlo, discriminando entre un objeto
@@ -74,6 +75,11 @@ class MonteCarloSimulacion:
 
             mu_vector = returns_df.mean()    # Vector de medias (drift)
             cov_matrix = returns_df.cov()    # Matriz de Covarianza
+
+            # NUEVO: Guardamos la matriz de covarianza y el vector de medias
+            self.cov_matrix = cov_matrix
+            self.mu_vector = mu_vector
+
             n_assets = len(mu_vector)
             pesos = pd.Series(self.objeto.weights)
 
@@ -225,6 +231,132 @@ class MonteCarloSimulacion:
         ax2.legend()
         ax2.grid(True, alpha=0.3)
 
+        plt.tight_layout()
+        plt.show()
+    
+    def visualizar_matriz_covarianza(self, show_values: bool = True, cmap: str = "RdYlGn"):
+        """
+        Visualiza la matriz de covarianzas utilizada en la simulación de Monte Carlo.
+        Solo disponible cuando la simulación se ejecuta sobre un Portfolio.
+        
+        Parámetros:
+        -----------
+        show_values : bool, default=True
+            Si True, muestra los valores numéricos en cada celda del heatmap
+        cmap : str, default="RdYlGn"
+            Mapa de colores para el heatmap. Opciones populares:
+            - "RdYlGn": Rojo-Amarillo-Verde
+            - "coolwarm": Azul-Rojo
+            - "viridis": Escala violeta-amarillo
+            - "Blues": Escala de azules
+        """
+        # Validar que se haya ejecutado la simulación
+        if self.resultados is None:
+            raise ValueError("Primero debes ejecutar .ejecutar()")
+        
+        # Validar que sea un Portfolio
+        if not isinstance(self.objeto, Portfolio):
+            raise TypeError(
+                "La matriz de covarianza solo está disponible para simulaciones de Portfolio. "
+                "Esta simulación fue ejecutada sobre un objeto PriceSeries (activo único)."
+            )
+        
+        # Validar que exista la matriz de covarianza
+        if self.cov_matrix is None:
+            raise ValueError("No se encontró la matriz de covarianza. Ejecuta primero .ejecutar()")
+        
+        # Crear la figura
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        # Crear el heatmap
+        sns.heatmap(
+            self.cov_matrix,
+            annot=show_values,  # Mostrar valores en las celdas
+            fmt='.6f',          # Formato de 6 decimales
+            cmap=cmap,
+            center=0,           # Centrar el color en 0
+            square=True,        # Celdas cuadradas
+            linewidths=0.5,     # Líneas entre celdas
+            cbar_kws={'label': 'Covarianza'},
+            ax=ax
+        )
+        
+        # Configurar título y etiquetas
+        ax.set_title(
+            f'Matriz de Covarianzas - Portfolio: {self.objeto.name}\n'
+            f'(Retornos {self.tipo_retornos})',
+            fontsize=14,
+            weight='bold',
+            pad=20
+        )
+        
+        # Rotar las etiquetas para mejor legibilidad
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=0)
+        
+        plt.tight_layout()
+        plt.show()
+        
+    def visualizar_correlacion(self, show_values: bool = True, cmap: str = "coolwarm"):
+        """
+        Visualiza la matriz de correlación calculada a partir de la matriz de covarianzas.
+        Solo disponible cuando la simulación se ejecuta sobre un Portfolio.
+        
+        Parámetros:
+        -----------
+        show_values : bool, default=True
+            Si True, muestra los valores numéricos en cada celda del heatmap
+        cmap : str, default="coolwarm"
+            Mapa de colores para el heatmap
+        """
+        # Validaciones similares
+        if self.resultados is None:
+            raise ValueError("Primero debes ejecutar .ejecutar()")
+        
+        if not isinstance(self.objeto, Portfolio):
+            raise TypeError(
+                "La matriz de correlación solo está disponible para simulaciones de Portfolio."
+            )
+        
+        if self.cov_matrix is None:
+            raise ValueError("No se encontró la matriz de covarianza. Ejecuta primero .ejecutar()")
+        
+        # Calcular la matriz de correlación desde la covarianza
+        # corr = cov / (std_i * std_j)
+        std_dev = np.sqrt(np.diag(self.cov_matrix))
+        corr_matrix = self.cov_matrix / np.outer(std_dev, std_dev)
+        
+        # Crear la figura
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        # Crear el heatmap
+        sns.heatmap(
+            corr_matrix,
+            annot=show_values,
+            fmt='.3f',          # 3 decimales para correlación
+            cmap=cmap,
+            center=0,
+            vmin=-1,            # Correlación mínima -1
+            vmax=1,             # Correlación máxima 1
+            square=True,
+            linewidths=0.5,
+            cbar_kws={'label': 'Correlación'},
+            ax=ax
+        )
+        
+        # Configurar título
+        ax.set_title(
+            f'Matriz de Correlación - Portfolio: {self.objeto.name}\n'
+            f'(Retornos {self.tipo_retornos})',
+            fontsize=14,
+            weight='bold',
+            pad=20
+        )
+        
+        # Rotar las etiquetas
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=0)
+        
         plt.tight_layout()
         plt.show()
 
