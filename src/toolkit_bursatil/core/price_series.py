@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from toolkit_bursatil.core.montecarlo import MonteCarloSimulacion
 
 
 @dataclass
@@ -92,6 +91,8 @@ class PriceSeries:
         if valor_inicial is None:
             valor_inicial = float(self.data["close"].iloc[-1])
 
+        from toolkit_bursatil.core.montecarlo import MonteCarloSimulacion
+
         sim = MonteCarloSimulacion(
             objeto=self,
             n_sim=n_sim,
@@ -104,9 +105,15 @@ class PriceSeries:
         self.simulacion = sim
         return resultados
 
+    def resumen_simulacion(self):
+        """Muestra el resumen de la simulación Monte Carlo de la serie."""
+        if not hasattr(self, "simulacion"):
+            # 'self.simulacion' es la instancia de MonteCarloSimulacion guardada
+            raise ValueError("Primero debes ejecutar .simular_montecarlo()")
+        self.simulacion.resumen() 
 
     def mostrar_simulacion(self, n: int = 50):
-        """Muestra la simulación Monte Carlo de la serie."""
+        """Muestra el gráfico de la simulación Monte Carlo de la serie."""
         if not hasattr(self, "simulacion"):
             raise ValueError("Primero debes ejecutar .simular_montecarlo()")
         self.simulacion.graficar(n)

@@ -21,9 +21,9 @@ class YahooSerie(DataProviderBase):
 
         data.columns = [c.lower().strip() for c in data.columns]
 
-        # Renombrar 'adj close' a 'close' si 'close' no existe
+        '''# Renombrar 'adj close' a 'close' si 'close' no existe
         if "close" not in data.columns and "adj close" in data.columns:
-            data = data.rename(columns={"adj close": "close"})
+            data = data.rename(columns={"adj close": "close"})'''
 
         if "close" not in data.columns:
             raise ValueError(

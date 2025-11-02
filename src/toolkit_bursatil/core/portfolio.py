@@ -10,7 +10,6 @@ from src.toolkit_bursatil.core.price_series import PriceSeries
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from toolkit_bursatil.core.montecarlo import MonteCarloSimulacion
 
 
 
@@ -45,15 +44,37 @@ class Portfolio:
         self.mean = float(self.portfolio_returns.mean())
         self.std = float(self.portfolio_returns.std())
 
-    def plot_returns(self):
-        """Grafica los retornos de la cartera."""
-        plt.figure(figsize=(10, 5))
-        plt.plot(self.portfolio_returns.index, (1 + self.portfolio_returns).cumprod(), label='Cumulative Returns')
-        plt.title(f'Cumulative Returns of Portfolio: {self.name}')
-        plt.xlabel('Date')
-        plt.ylabel('Cumulative Returns')
-        plt.legend()
-        plt.grid()
+    # ... (Clase Portfolio y otros métodos) ...
+
+    def plot_returns(self, tipo: str = "portfolio"):
+        """
+        Grafica los retornos acumulados de la cartera o de los activos individuales.
+
+        tipo='portfolio' (defecto) → Grafica el retorno acumulado de la cartera.
+        tipo='assets' → Grafica el retorno acumulado de cada activo por separado.
+        """
+        plt.figure(figsize=(12, 6))
+
+        if tipo == 'portfolio':
+            # Graficar solo el retorno de la cartera
+            cum_returns = (1 + self.portfolio_returns).cumprod()
+            cum_returns.plot(label=f'Cartera: {self.name}', legend=True)
+            title = f'Rentabilidad Acumulada del Portafolio: {self.name}'
+
+        elif tipo == 'assets':
+            # Graficar los retornos individuales de cada activo
+            # Usamos returns_df, rellenamos el primer NaN con 0 para el cumprod
+            cum_returns_assets = (1 + self.returns_df).cumprod()
+            cum_returns_assets.plot()
+            title = f'Rentabilidad Acumulada de Activos Individuales en {self.name}'
+        
+        else:
+            raise ValueError("El parámetro 'tipo' debe ser 'portfolio' o 'assets'.")
+
+        plt.title(title)
+        plt.xlabel('Fecha')
+        plt.ylabel('Retorno Acumulado')
+        plt.grid(True)
         plt.show()
     
     def simular_montecarlo(
@@ -64,6 +85,8 @@ class Portfolio:
         tipo_retornos: str = "log",
         seed: int | None = None,
     ):
+        from toolkit_bursatil.core.montecarlo import MonteCarloSimulacion
+
         """Ejecuta una simulación Monte Carlo sobre la cartera."""
         sim = MonteCarloSimulacion(
             objeto=self,
@@ -77,6 +100,13 @@ class Portfolio:
         self.simulacion = sim
         return resultados
 
+
+    def resumen_simulacion(self):
+            """Muestra el resumen de la simulación Monte Carlo de la serie."""
+            if not hasattr(self, "simulacion"):
+                # 'self.simulacion' es la instancia de MonteCarloSimulacion guardada
+                raise ValueError("Primero debes ejecutar .simular_montecarlo()")
+            self.simulacion.resumen() 
 
     def mostrar_simulacion(self, n: int = 50):
         """Muestra visualmente los resultados de la última simulación."""

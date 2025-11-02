@@ -12,7 +12,7 @@
 			{
 				"viewType": "jupyter-notebook",
 				"kernelProviderId": "python"
-			}
+			},
 		],
 		"python.analysis.autoImportCompletions": true,
 		"editor.formatOnSave": true,

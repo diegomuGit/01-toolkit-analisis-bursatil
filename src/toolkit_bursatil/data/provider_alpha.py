@@ -24,7 +24,7 @@ class AlphaVantageSerie(DataProviderBase):
             raise ValueError("❌ No se encontró la clave 'ALPHAVANTAGE_API_KEY' en el archivo .env")
 
         ts = TimeSeries(key=api_key, output_format="pandas")
-        data, *resto = ts.get_daily(symbol=self.ticker, outputsize="full") # datos diarios
+        data, *resto = ts.get_daily(symbol=self.ticker, outputsize="full") # datos diarios. No estoy usando precios ajustados. Para usar esos datos de esta api, desde la funcion get_daily_adjusted se obtienen los precios ajustados pagando
 
         # Renombrar columnas al formato estándar
         data = data.rename( # type: ignore

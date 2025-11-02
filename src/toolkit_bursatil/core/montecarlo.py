@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from toolkit_bursatil.core.price_series import PriceSeries
+from toolkit_bursatil.core.portfolio import Portfolio
 
 
 @dataclass
@@ -16,27 +18,111 @@ class MonteCarloSimulacion:
     seed: int | None = None
 
     def ejecutar(self) -> pd.DataFrame:
-        """Ejecuta la simulación y devuelve un DataFrame con las trayectorias simuladas."""
+        """
+        Ejecuta la simulación de Monte Carlo, discriminando entre un objeto
+        PriceSeries (univariado) y un objeto Portfolio (multivariado/Cholesky).
+        """
         np.random.seed(self.seed)
+        
+        # 1. DISCRIMINACIÓN DEL OBJETO Y EXTRACCIÓN DE PARÁMETROS
+        
+        # Caso A: Objeto es PriceSeries (Simulación Univariada Original)
+        if isinstance(self.objeto, PriceSeries):
+            
+            # CORREGIDO: Obtenemos los retornos históricos correctos (log o simple)
+            #           en lugar de usar los que venían por defecto en PriceSeries.
+            if self.tipo_retornos == "log":
+                returns_hist = self.objeto.returns(method="log")
+            else:
+                returns_hist = self.objeto.returns(method="simple")
+                
+            mu = returns_hist.mean()
+            sigma = returns_hist.std()
+            
+            # Generar retornos simulados (basados en distribución normal simple)
+            retornos_simulados = np.random.normal(mu, sigma, (self.horizonte, self.n_sim))
+            retornos_simulados_df = pd.DataFrame(retornos_simulados)
+            
+            # El flujo sigue el cálculo univariado
+            if self.tipo_retornos == "log":
+                # Compounding logarítmico
+                precios = self.valor_inicial * np.exp(retornos_simulados_df.cumsum())
+            else:
+                # Compounding simple
+                precios = self.valor_inicial * (1 + retornos_simulados_df).cumprod()
+                
+            self.resultados = precios
+            return precios
 
-        # Determinar media y desviación según tipo de objeto
-        if hasattr(self.objeto, "mean") and hasattr(self.objeto, "std"):
-            mu, sigma = self.objeto.mean, self.objeto.std
+        # Caso B: Objeto es Portfolio (Simulación Multivariada - Cholesky)
+        elif isinstance(self.objeto, Portfolio):
+            
+            # --- PASO 1: Obtener datos de la cartera (CORREGIDO) ---
+            # Extraemos los retornos del tipo correcto (log o simple)
+            
+            if self.tipo_retornos == "log":
+                # NUEVO: Si es log, recalculamos los retornos de los activos como log
+                return_dic = {
+                    ticker: ps.returns(method="log") 
+                    for ticker, ps in self.objeto.assets.items()
+                }
+                returns_df = pd.DataFrame(return_dic).dropna()
+            else:
+                # Si es simple, usamos el que ya calculó el Portfolio
+                returns_df = self.objeto.returns_df
+
+            mu_vector = returns_df.mean()    # Vector de medias (drift)
+            cov_matrix = returns_df.cov()    # Matriz de Covarianza
+            n_assets = len(mu_vector)
+            pesos = pd.Series(self.objeto.weights)
+
+            # --- PASO 2: Descomposición de Cholesky ---
+            try:
+                L = np.linalg.cholesky(cov_matrix)
+            except np.linalg.LinAlgError:
+                raise ValueError("La matriz de covarianza no es semi-definida positiva. Revisa tus datos.")
+
+            # --- PASO 3, 4 y 5: Generar Retornos (CORREGIDO) ---
+            # El bucle de simulación AHORA contiene la generación de números aleatorios.
+            
+            simulaciones_finales = {}
+
+            for i in range(self.n_sim):
+                
+                # 1. Generar aleatorios (Z) para ESTA simulación (i)
+                Z = np.random.normal(size=(self.horizonte, n_assets))
+                
+                # 2. Correlacionar y añadir drift
+                # Epsilon = Z @ L.T
+                retornos_correlacionados = Z @ L.T
+                # Sumamos el drift (media de retornos log o simples, según corresponda)
+                retornos_simulados_con_drift = retornos_correlacionados + mu_vector.values
+
+                # 3. Convertir a retornos simples (si partimos de log)
+                if self.tipo_retornos == "log":
+                    # Si simulamos log-returns, los convertimos a simples
+                    retornos_simples_simulados = np.exp(retornos_simulados_con_drift) - 1
+                    retornos_simples_df = pd.DataFrame(retornos_simples_simulados, columns=mu_vector.index)
+                else:
+                    # Si simulamos simples, ya los tenemos
+                    retornos_simples_df = pd.DataFrame(retornos_simulados_con_drift, columns=mu_vector.index)
+                
+                # 4. Calcular el retorno diario de la cartera para esta simulación
+                portfolio_daily_returns_i = retornos_simples_df.dot(pesos)
+                
+                # 5. Calcular la trayectoria de valor final
+                valor_acumulado = (1 + portfolio_daily_returns_i).cumprod()
+                simulaciones_finales[f'Simulacion_{i+1}'] = self.valor_inicial * valor_acumulado
+
+            # Convertir el diccionario de trayectorias en el DataFrame de resultados
+            precios = pd.DataFrame(simulaciones_finales)
+
+            self.resultados = precios # self.resultados ahora es un DataFrame con n_sim columnas
+            return precios
+
         else:
-            raise ValueError("El objeto debe tener atributos 'mean' y 'std'.")
-
-        # Generar retornos simulados
-        retornos = np.random.normal(mu, sigma, (self.horizonte, self.n_sim))
-        retornos = pd.DataFrame(retornos)
-
-        # Calcular precios simulados
-        if self.tipo_retornos == "log":
-            precios = self.valor_inicial * np.exp(retornos.cumsum())
-        else:
-            precios = self.valor_inicial * (1 + retornos).cumprod()
-
-        self.resultados = precios
-        return precios
+            # Manejo de error si se pasa un tipo de objeto no compatible
+            raise TypeError("El objeto para la simulación debe ser PriceSeries o Portfolio.")
 
     def resumen(self):
         """Muestra estadísticas básicas del resultado final."""
@@ -48,13 +134,37 @@ class MonteCarloSimulacion:
         print(f" P95: {np.percentile(finales, 95):.2f}")
         print("═════════════════════════════════════════════")
 
+
     def graficar(self, n: int = 50):
-        """Grafica n trayectorias simuladas."""
-        resultados_df = pd.DataFrame(self.resultados) if not isinstance(self.resultados, pd.DataFrame) else self.resultados
-        resultados_df.iloc[:, :n].plot(legend=False, alpha=0.4, figsize=(10, 4))
-        titulo = getattr(self.objeto, "ticker", getattr(self.objeto, "name", "Simulación"))
-        plt.title(f"Simulación Monte Carlo - {titulo}")
+        """Muestra el gráfico de N trayectorias simuladas."""
+        if self.resultados is None:
+            raise ValueError("Primero debes ejecutar .ejecutar()")
+
+        # 1. Seleccionar 'n' trayectorias aleatorias (o todas si n > n_sim)
+        n_sim = self.resultados.shape[1]
+        n_a_mostrar = min(n, n_sim)
+        
+        # Selecciona N columnas al azar del DataFrame de resultados
+        caminos_a_mostrar = self.resultados.sample(n=n_a_mostrar, axis=1)
+
+        # 2. Configurar y dibujar el gráfico
+        plt.figure(figsize=(12, 6))
+        
+        # PLOTEO: Pandas automáticamente plotea cada columna como una línea
+        # Determinar el título según el tipo de objeto
+        if isinstance(self.objeto, PriceSeries):
+            titulo = f"Simulación Monte Carlo - {self.objeto.ticker} ({n_a_mostrar} caminos)"
+        else:
+            titulo = f"Simulación Monte Carlo - {self.objeto.name} ({n_a_mostrar} caminos)"
+        
+        caminos_a_mostrar.plot(
+            ax=plt.gca(),
+            legend=False,  # Ocultamos la leyenda si son muchas líneas
+            alpha=0.3,     # Usamos transparencia para que se vea la densidad
+            grid=True,
+            title=titulo
+        )
+        
         plt.xlabel("Días")
         plt.ylabel("Valor simulado")
-        plt.grid(True)
         plt.show()
