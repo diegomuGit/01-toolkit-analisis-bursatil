@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 from toolkit_bursatil.core.price_series import PriceSeries
 from toolkit_bursatil.data.provider_base import DataProviderBase
 from alpha_vantage.timeseries import TimeSeries
@@ -6,16 +7,9 @@ from dotenv import load_dotenv
 import pandas as pd
 import os
 
-
-@dataclass
 class AlphaVantageSerie(DataProviderBase):
     """Descarga series de precios desde Alpha Vantage y devuelve un objeto PriceSeries."""
-
-    ticker: str
-    start_date: str
-    end_date: str
-
-    def get_serie_precios(self) -> PriceSeries:
+    def get_serie_precios(self, ticker: str, start: Optional[str] = None, end: Optional[str] = None) -> PriceSeries:
         """Descarga la serie histórica de precios desde Alpha Vantage."""
         load_dotenv()
         api_key = os.getenv("ALPHAVANTAGE_API_KEY")
@@ -24,7 +18,7 @@ class AlphaVantageSerie(DataProviderBase):
             raise ValueError("❌ No se encontró la clave 'ALPHAVANTAGE_API_KEY' en el archivo .env")
 
         ts = TimeSeries(key=api_key, output_format="pandas")
-        data, *resto = ts.get_daily(symbol=self.ticker, outputsize="full") # datos diarios. No estoy usando precios ajustados. Para usar esos datos de esta api, desde la funcion get_daily_adjusted se obtienen los precios ajustados pagando
+        data, *resto = ts.get_daily(symbol=ticker, outputsize="full") # datos diarios. No estoy usando precios ajustados. Para usar esos datos de esta api, desde la funcion get_daily_adjusted se obtienen los precios ajustados pagando
 
         # Renombrar columnas al formato estándar
         data = data.rename( # type: ignore
@@ -42,9 +36,9 @@ class AlphaVantageSerie(DataProviderBase):
         data = data.sort_index()
 
         # Recortar rango de fechas
-        data = data.loc[self.start_date:self.end_date]
+        data = data.loc[start:end]
 
         if "close" not in data.columns:
             raise ValueError(f"❌ Falta la columna 'close'. Columnas detectadas: {data.columns.tolist()}")
 
-        return PriceSeries(ticker=self.ticker, data=data)
+        return PriceSeries(ticker=ticker, data=data)

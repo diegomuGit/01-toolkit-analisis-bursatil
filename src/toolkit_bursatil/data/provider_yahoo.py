@@ -1,19 +1,17 @@
 from dataclasses import dataclass
+from typing import Optional
 from toolkit_bursatil.core.price_series import PriceSeries
 import yfinance as yf
 import pandas as pd
 from toolkit_bursatil.data.provider_base import DataProviderBase
 
-
-@dataclass
 class YahooSerie(DataProviderBase):
-    ticker: str
-    start_date: str
-    end_date: str
-
-    def get_serie_precios(self) -> PriceSeries:
+    def get_serie_precios(self, ticker: str, start: Optional[str] = None, end: Optional[str] = None) -> PriceSeries:
         """Descarga la serie histórica de precios desde Yahoo Finance."""
-        data = yf.download(self.ticker, start=self.start_date, end=self.end_date, progress=False)
+        data = yf.download(ticker, start=start, end=end, progress=False)
+
+        if data is None or data.empty:
+            raise ValueError(f"YahooSerie: no se obtuvieron datos para el ticker '{ticker}'")
 
         # --- Normalización mínima para evitar el error de 'close' ---
         if isinstance(data.columns, pd.MultiIndex):
@@ -32,5 +30,5 @@ class YahooSerie(DataProviderBase):
 
         data = data.sort_index()
 
-        return PriceSeries(ticker=self.ticker, data=data)
+        return PriceSeries(ticker=ticker, data=data)
 
