@@ -6,10 +6,11 @@ Calcula retornos, rentabilidad media y volatilidad conjunta.
 """
 
 from dataclasses import dataclass, field
-from src.toolkit_bursatil.core.price_series import PriceSeries
+from toolkit_bursatil.core.price_series import PriceSeries
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 
@@ -21,7 +22,9 @@ class Portfolio:
     mean: float = field(init=False)
     std: float = field(init=False)
     returns_df : pd.DataFrame = field(init=False)
-    portfolio_returns: pd.Series = field(init=False) 
+    portfolio_returns: pd.Series = field(init=False)
+    cov_matrix: pd.DataFrame = field(init=False)
+    corr_matrix: pd.DataFrame = field(init=False) 
 
 
     def __post_init__(self):
@@ -34,6 +37,10 @@ class Portfolio:
         for ticker, ps in self.assets.items():
             return_dic[ticker] = ps.returns()
         self.returns_df = pd.DataFrame(return_dic).dropna()
+
+        '''Cálculo de las matrices de covarianza y correlación'''
+        self.cov_matrix = self.returns_df.cov()
+        self.corr_matrix = self.returns_df.corr()
 
         '''Cálculo del retorno de la cartera con los pesos de los activos
         Producto entre la matriz de retornos y el vector de pesos'''
@@ -119,6 +126,82 @@ class Portfolio:
         if not hasattr(self, "simulacion"):
             raise ValueError("Primero debes ejecutar .simular_montecarlo()")
         self.simulacion.graficar_seaborn(n)
+    
+    def visualizar_covarianza(self, show_values: bool = True, cmap: str = "RdYlGn"):
+        """
+        Visualiza la matriz de covarianzas de la cartera.
+        
+        Parámetros:
+        -----------
+        show_values : bool, default=True
+            Si True, muestra los valores numéricos en cada celda del heatmap
+        cmap : str, default="RdYlGn"
+            Mapa de colores para el heatmap
+        """
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        sns.heatmap(
+            self.cov_matrix,
+            annot=show_values,
+            fmt='.6f',
+            cmap=cmap,
+            center=0,
+            square=True,
+            linewidths=0.5,
+            cbar_kws={'label': 'Covarianza'},
+            ax=ax
+        )
+        
+        ax.set_title(
+            f'Matriz de Covarianzas - Portfolio: {self.name}',
+            fontsize=14,
+            weight='bold',
+            pad=20
+        )
+        
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=0)
+        plt.tight_layout()
+        plt.show()
+
+    def visualizar_correlacion(self, show_values: bool = True, cmap: str = "coolwarm"):
+        """
+        Visualiza la matriz de correlación de la cartera.
+        
+        Parámetros:
+        -----------
+        show_values : bool, default=True
+            Si True, muestra los valores numéricos en cada celda
+        cmap : str, default="coolwarm"
+            Mapa de colores para el heatmap
+        """
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        sns.heatmap(
+            self.corr_matrix,
+            annot=show_values,
+            fmt='.3f',
+            cmap=cmap,
+            center=0,
+            vmin=-1,
+            vmax=1,
+            square=True,
+            linewidths=0.5,
+            cbar_kws={'label': 'Correlación'},
+            ax=ax
+        )
+        
+        ax.set_title(
+            f'Matriz de Correlación - Portfolio: {self.name}',
+            fontsize=14,
+            weight='bold',
+            pad=20
+        )
+        
+        plt.xticks(rotation=45, ha='right')
+        plt.yticks(rotation=0)
+        plt.tight_layout()
+        plt.show()
     
     def report(
         self,
