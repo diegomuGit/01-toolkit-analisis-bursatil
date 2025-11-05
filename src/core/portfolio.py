@@ -6,7 +6,7 @@ Calcula retornos, rentabilidad media y volatilidad conjunta.
 """
 
 from dataclasses import dataclass, field
-from toolkit_bursatil.core.price_series import PriceSeries
+from src.core.price_series import PriceSeries
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -92,7 +92,7 @@ class Portfolio:
         tipo_retornos: str = "log",
         seed: int | None = None,
     ):
-        from toolkit_bursatil.core.montecarlo import MonteCarloSimulacion
+        from src.core.montecarlo import MonteCarloSimulacion
 
         """Ejecuta una simulación Monte Carlo sobre la cartera."""
         sim = MonteCarloSimulacion(

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from toolkit_bursatil.core.price_series import PriceSeries
+from src.core.price_series import PriceSeries
 
 class DataProviderBase(ABC):
     '''Interfaz base para las API proveedoras de datos'''

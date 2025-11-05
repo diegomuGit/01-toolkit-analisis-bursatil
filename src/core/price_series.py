@@ -91,7 +91,7 @@ class PriceSeries:
         if valor_inicial is None:
             valor_inicial = float(self.data["close"].iloc[-1])
 
-        from toolkit_bursatil.core.montecarlo import MonteCarloSimulacion
+        from src.core.montecarlo import MonteCarloSimulacion
 
         sim = MonteCarloSimulacion(
             objeto=self,

@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
-from toolkit_bursatil.core.price_series import PriceSeries
+from src.core.price_series import PriceSeries
 import yfinance as yf
 import pandas as pd
-from toolkit_bursatil.data.provider_base import DataProviderBase
+from src.data.provider_base import DataProviderBase
 
 class YahooSerie(DataProviderBase):
     def get_serie_precios(self, ticker: str, start: Optional[str] = None, end: Optional[str] = None) -> PriceSeries:

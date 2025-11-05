@@ -3,15 +3,15 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from toolkit_bursatil.core.price_series import PriceSeries
-from toolkit_bursatil.core.portfolio import Portfolio
+from src.core.price_series import PriceSeries
+from src.core.portfolio import Portfolio
 
 
 @dataclass
 class MonteCarloSimulacion:
     """Simulación de Monte Carlo para una PriceSeries o Portfolio."""
 
-    objeto: object                  # Puede ser PriceSeries o Portfolio
+    objeto: PriceSeries | Portfolio  # Puede ser PriceSeries o Portfolio
     n_sim: int = 1000            # Nº de simulaciones
     horizonte: int = 252         # Días a simular
     valor_inicial: float = 100.0
@@ -52,6 +52,10 @@ class MonteCarloSimulacion:
             else:
                 # Compounding simple
                 precios = self.valor_inicial * (1 + retornos_simulados_df).cumprod()
+            
+            # Ensure precios is a DataFrame
+            if not isinstance(precios, pd.DataFrame):
+                precios = pd.DataFrame(precios)
                 
             self.resultados = precios
             return precios
@@ -99,7 +103,7 @@ class MonteCarloSimulacion:
                 # Epsilon = Z @ L.T
                 retornos_correlacionados = Z @ L.T
                 # Sumamos el drift (media de retornos log o simples, según corresponda)
-                retornos_simulados_con_drift = retornos_correlacionados + mu_vector.values
+                retornos_simulados_con_drift = retornos_correlacionados + np.asarray(mu_vector.values)
 
                 # 3. Convertir a retornos simples (si partimos de log)
                 if self.tipo_retornos == "log":
@@ -210,7 +214,7 @@ class MonteCarloSimulacion:
         s0 = caminos.iloc[0, 0]
 
         # Retornos logarítmicos finales
-        retornos_log = np.log(valores_finales / s0)
+        retornos_log = np.log(valores_finales / float(s0))
 
         # Histograma con KDE
         sns.histplot(retornos_log, ax=ax2, kde=True, color="limegreen", stat="density", bins=20, edgecolor="black", alpha=0.6)
