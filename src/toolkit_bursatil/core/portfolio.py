@@ -206,40 +206,39 @@ class Portfolio:
     def report(
         self,
         mostrar: bool = True,
-        incluir_activos: bool = True,
-        incluir_correlacion: bool = True,
         incluir_var: bool = True,
         nivel_confianza: float = 0.95,
         periodo_anual: int = 252,
     ) -> str:
         """
-        Genera un informe completo de la cartera en formato Markdown.
+        Genera un informe simplificado y austero de la cartera en formato Markdown.
+        
+        Este informe se centra en el rendimiento agregado de la cartera,
+        la composición de pesos y el Value at Risk (VaR).
         
         Parámetros:
         -----------
         mostrar : bool, default=True
             Si es True, imprime el reporte en pantalla.
-        incluir_activos : bool, default=True
-            Incluye análisis individual de cada activo.
-        incluir_correlacion : bool, default=True
-            Incluye matriz de correlación entre activos.
         incluir_var : bool, default=True
-            Incluye cálculo de Value at Risk (VaR).
+            Incluye cálculo de Value at Risk (VaR) y CVaR.
         nivel_confianza : float, default=0.95
             Nivel de confianza para el cálculo del VaR.
         periodo_anual : int, default=252
             Número de periodos para anualización (252 días de trading).
-            
+        
         Returns:
         --------
         str : Reporte en formato Markdown
         """
-        
-        # Construcción del reporte
         lines = []
+        
+        # ===== ENCABEZADO =====
         lines.append(f"# 📊 Informe de Cartera: {self.name}")
         lines.append("")
         lines.append(f"**Fecha de generación:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append("")
+        lines.append("---")
         lines.append("")
         
         # ===== RESUMEN EJECUTIVO =====
@@ -251,174 +250,77 @@ class Portfolio:
         volatilidad_anualizada = self.std * np.sqrt(periodo_anual)
         sharpe_ratio = retorno_anualizado / volatilidad_anualizada if volatilidad_anualizada > 0 else 0
         
-        lines.append("| Métrica | Valor |")
-        lines.append("|---------|-------|")
-        lines.append(f"| **Retorno Promedio Diario** | {self.mean*100:.4f}% |")
-        lines.append(f"| **Retorno Anualizado** | {retorno_anualizado*100:.2f}% |")
-        lines.append(f"| **Volatilidad Diaria** | {self.std*100:.4f}% |")
-        lines.append(f"| **Volatilidad Anualizada** | {volatilidad_anualizada*100:.2f}% |")
-        lines.append(f"| **Ratio de Sharpe** | {sharpe_ratio:.4f} |")
-        lines.append(f"| **Número de Activos** | {len(self.assets)} |")
-        lines.append(f"| **Observaciones** | {len(self.portfolio_returns)} |")
+        lines.append("| Métrica                    | Valor           |")
+        lines.append("|:---------------------------|----------------:|")
+        lines.append(f"| Retorno Promedio Diario    | {self.mean*100:>7.4f}%  |")
+        lines.append(f"| Retorno Anualizado         | {retorno_anualizado*100:>7.2f}%  |")
+        lines.append(f"| Volatilidad Diaria         | {self.std*100:>7.4f}%  |")
+        lines.append(f"| Volatilidad Anualizada     | {volatilidad_anualizada*100:>7.2f}%  |")
+        lines.append(f"| Ratio de Sharpe            | {sharpe_ratio:>7.4f}   |")
+        lines.append(f"| Número de Activos          | {len(self.assets):>7d}   |")
+        lines.append(f"| Observaciones              | {len(self.portfolio_returns):>7d}   |")
         lines.append("")
         
         # ===== COMPOSICIÓN DE LA CARTERA =====
-        lines.append("## 💼 Composición de la Cartera")
+        lines.append("## 🎯 Composición de la Cartera")
         lines.append("")
-        lines.append("| Ticker | Peso | Contribución al Retorno |")
-        lines.append("|--------|------|-------------------------|")
+        lines.append("| Ticker | Peso    | Contribución Diaria |")
+        lines.append("|:-------|--------:|--------------------:|")
         
         for ticker, weight in sorted(self.weights.items(), key=lambda x: x[1], reverse=True):
             contribucion = self.returns_df[ticker].mean() * weight * 100
-            lines.append(f"| {ticker} | {weight*100:.2f}% | {contribucion:.4f}% |")
-        lines.append("")
+            lines.append(f"| {ticker:<6} | {weight*100:>6.2f}% | {contribucion:>10.4f}%      |")
         
-        # ===== ADVERTENCIAS Y ALERTAS =====
-        lines.append("## ⚠️ Advertencias y Alertas")
-        lines.append("")
-        
-        advertencias = []
-        
-        # Advertencia: Concentración
-        max_peso = max(self.weights.values())
-        if max_peso > 0.40:
-            advertencias.append(f"🔴 **Alta concentración:** Un activo representa más del 40% de la cartera ({max_peso*100:.1f}%)")
-        elif max_peso > 0.30:
-            advertencias.append(f"🟡 **Concentración moderada:** Un activo representa más del 30% de la cartera ({max_peso*100:.1f}%)")
-        
-        # Advertencia: Volatilidad
-        if volatilidad_anualizada > 0.30:
-            advertencias.append(f"🔴 **Alta volatilidad:** La volatilidad anualizada es del {volatilidad_anualizada*100:.1f}%")
-        elif volatilidad_anualizada > 0.20:
-            advertencias.append(f"🟡 **Volatilidad moderada-alta:** La volatilidad anualizada es del {volatilidad_anualizada*100:.1f}%")
-        
-        # Advertencia: Sharpe Ratio
-        if sharpe_ratio < 0:
-            advertencias.append(f"🔴 **Sharpe Ratio negativo:** La cartera tiene un ratio de Sharpe de {sharpe_ratio:.2f}")
-        elif sharpe_ratio < 0.5:
-            advertencias.append(f"🟡 **Sharpe Ratio bajo:** El ratio de Sharpe es {sharpe_ratio:.2f} (recomendado > 1.0)")
-        
-        # Advertencia: Retorno negativo
-        if retorno_anualizado < 0:
-            advertencias.append(f"🔴 **Retorno negativo:** La cartera tiene un retorno anualizado de {retorno_anualizado*100:.2f}%")
-        
-        # Advertencia: Número de activos
-        if len(self.assets) < 3:
-            advertencias.append(f"🟡 **Diversificación limitada:** La cartera tiene solo {len(self.assets)} activo(s)")
-        
-        if advertencias:
-            for adv in advertencias:
-                lines.append(f"- {adv}")
-        else:
-            lines.append("✅ **No se detectaron advertencias significativas.**")
         lines.append("")
         
         # ===== VALUE AT RISK (VaR) =====
         if incluir_var:
-            lines.append("## 📉 Value at Risk (VaR)")
+            lines.append("## ⚠️ Value at Risk (VaR)")
             lines.append("")
             
-            var_parametrico = np.percentile(self.portfolio_returns, (1 - nivel_confianza) * 100)
-            cvar = self.portfolio_returns[self.portfolio_returns <= var_parametrico].mean()
+            var_percentil = (1 - nivel_confianza) * 100
+            var_historico = np.percentile(self.portfolio_returns, var_percentil)
+            cvar = self.portfolio_returns[self.portfolio_returns <= var_historico].mean()
             
             lines.append(f"**Nivel de confianza:** {nivel_confianza*100:.0f}%")
             lines.append("")
-            lines.append("| Métrica | Diario | Anualizado |")
-            lines.append("|---------|--------|------------|")
-            lines.append(f"| **VaR ({nivel_confianza*100:.0f}%)** | {var_parametrico*100:.4f}% | {var_parametrico*np.sqrt(periodo_anual)*100:.2f}% |")
-            lines.append(f"| **CVaR (Expected Shortfall)** | {cvar*100:.4f}% | {cvar*np.sqrt(periodo_anual)*100:.2f}% |")
-            lines.append("")
-            lines.append(f"*Con un {nivel_confianza*100:.0f}% de confianza, la pérdida máxima esperada en un día es de {abs(var_parametrico)*100:.2f}%*")
-            lines.append("")
-        
-        # ===== ANÁLISIS POR ACTIVO =====
-        if incluir_activos:
-            lines.append("## 📊 Análisis Individual de Activos")
-            lines.append("")
-            
-            for ticker in sorted(self.weights.keys()):
-                asset_returns = self.returns_df[ticker]
-                asset_mean = asset_returns.mean() * periodo_anual
-                asset_std = asset_returns.std() * np.sqrt(periodo_anual)
-                asset_sharpe = asset_mean / asset_std if asset_std > 0 else 0
-                
-                lines.append(f"### {ticker} ({self.weights[ticker]*100:.1f}% de la cartera)")
-                lines.append("")
-                lines.append("| Métrica | Valor |")
-                lines.append("|---------|-------|")
-                lines.append(f"| Retorno Anualizado | {asset_mean*100:.2f}% |")
-                lines.append(f"| Volatilidad Anualizada | {asset_std*100:.2f}% |")
-                lines.append(f"| Sharpe Ratio | {asset_sharpe:.4f} |")
-                lines.append(f"| Mínimo | {asset_returns.min()*100:.2f}% |")
-                lines.append(f"| Máximo | {asset_returns.max()*100:.2f}% |")
-                lines.append("")
-        
-        # ===== MATRIZ DE CORRELACIÓN =====
-        if incluir_correlacion and len(self.assets) > 1:
-            lines.append("## 🔗 Matriz de Correlación")
-            lines.append("")
-            
-            corr_matrix = self.returns_df.corr()
-            
-            # Crear tabla markdown
-            header = "| " + " | ".join([""] + list(corr_matrix.columns)) + " |"
-            separator = "|" + "|".join(["---"] * (len(corr_matrix.columns) + 1)) + "|"
-            lines.append(header)
-            lines.append(separator)
-            
-            for idx in corr_matrix.index:
-                row_values = [f"{val:.3f}" for val in corr_matrix.loc[idx]]
-                row = f"| **{idx}** | " + " | ".join(row_values) + " |"
-                lines.append(row)
-            lines.append("")
-            
-            # Análisis de correlaciones
-            lines.append("**Análisis de correlaciones:**")
-            lines.append("")
-            
-            # Buscar correlaciones altas
-            high_corr = []
-            for i in range(len(corr_matrix.columns)):
-                for j in range(i+1, len(corr_matrix.columns)):
-                    corr_val = corr_matrix.iloc[i, j]
-                    if abs(corr_val) > 0.8:
-                        high_corr.append((corr_matrix.columns[i], corr_matrix.columns[j], corr_val))
-            
-            if high_corr:
-                lines.append("⚠️ **Correlaciones altas detectadas (|r| > 0.8):**")
-                for t1, t2, corr in high_corr:
-                    lines.append(f"- {t1} ↔ {t2}: {corr:.3f}")
-            else:
-                lines.append("✅ No se detectaron correlaciones excesivamente altas entre activos.")
+            lines.append("| Métrica                   | Diario      | Anualizado  |")
+            lines.append("|:--------------------------|------------:|------------:|")
+            lines.append(f"| VaR ({nivel_confianza*100:.0f}%)              | {var_historico*100:>10.4f}% | {var_historico*np.sqrt(periodo_anual)*100:>10.2f}% |")
+            lines.append(f"| CVaR (Expected Shortfall) | {cvar*100:>10.4f}% | {cvar*np.sqrt(periodo_anual)*100:>10.2f}% |")
             lines.append("")
         
         # ===== ESTADÍSTICAS ADICIONALES =====
-        lines.append("## 📊 Estadísticas Adicionales")
+        lines.append("## 📉 Estadísticas de Distribución")
         lines.append("")
         
         skewness = self.portfolio_returns.skew()
         kurtosis = self.portfolio_returns.kurtosis()
+        retorno_acumulado = ((1 + self.portfolio_returns).prod() - 1) * 100
         
-        lines.append("| Métrica | Valor | Interpretación |")
-        lines.append("|---------|-------|----------------|")
-        lines.append(f"| **Asimetría (Skewness)** | {skewness:.4f} | {'Sesgo negativo (más pérdidas extremas)' if skewness < -0.5 else 'Sesgo positivo (más ganancias extremas)' if skewness > 0.5 else 'Distribución simétrica'} |")
-        lines.append(f"| **Curtosis (Kurtosis)** | {kurtosis:.4f} | {'Colas pesadas (eventos extremos)' if kurtosis > 1 else 'Colas ligeras' if kurtosis < -1 else 'Similar a normal'} |")
-        lines.append(f"| **Retorno Acumulado** | {((1 + self.portfolio_returns).prod() - 1)*100:.2f}% | Total en el periodo |")
+        # Interpretaciones
+        interp_skew = (
+            "Sesgo negativo (más pérdidas extremas)" if skewness < -0.5 
+            else "Sesgo positivo (más ganancias extremas)" if skewness > 0.5 
+            else "Distribución simétrica"
+        )
+        
+        interp_kurt = (
+            "Colas pesadas (mayor riesgo extremo)" if kurtosis > 1 
+            else "Colas ligeras" if kurtosis < -1 
+            else "Similar a distribución normal"
+        )
+        
+        lines.append("| Métrica                  | Valor      | Interpretación                          |")
+        lines.append("|:-------------------------|:----------:|:----------------------------------------|")
+        lines.append(f"| Asimetría (Skewness)     | {skewness:>9.4f} | {interp_skew:<40} |")
+        lines.append(f"| Curtosis (Kurtosis)      | {kurtosis:>9.4f} | {interp_kurt:<40} |")
+        lines.append(f"| Retorno Acumulado Total  | {retorno_acumulado:>8.2f}% | Retorno total del periodo               |")
         lines.append("")
         
-        # ===== PIE DE PÁGINA =====
-        lines.append("---")
-        lines.append("*Este informe es generado automáticamente y tiene fines informativos. No constituye asesoramiento financiero.*")
-        
-        # Unir todas las líneas
         markdown_report = "\n".join(lines)
         
-        # Mostrar si se solicita
         if mostrar:
-            try:
-                from IPython.display import display, Markdown
-                display(Markdown(markdown_report))
-            except ImportError:
-                print(markdown_report)
+            print(markdown_report)
         
         return markdown_report
