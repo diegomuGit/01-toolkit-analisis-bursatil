@@ -59,11 +59,6 @@ R_t = (P_t / P_{t-1}) - 1
 r_t = ln(P_t / P_{t-1})
 ```
 
-**Ventajas de retornos logarítmicos:**
-- Simetría temporal (reversibilidad)
-- Aditividad en el tiempo
-- Mejor aproximación para distribuciones normales
-
 ### 2. Teoría Moderna de Portafolios (Markowitz)
 
 El riesgo de un portafolio no es simplemente el promedio de los riesgos individuales, sino que depende de las **correlaciones entre activos**:
