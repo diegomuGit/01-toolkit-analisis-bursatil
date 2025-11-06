@@ -53,7 +53,7 @@ class Portfolio:
 
     # ... (Clase Portfolio y otros métodos) ...
 
-    def plot_returns(self, tipo: str = "portfolio"):
+    def plot_returns(self, tipo: str = "portfolio"): # SOLO CON RETORNOS SIMPLES
         """
         Grafica los retornos acumulados de la cartera o de los activos individuales.
 
@@ -214,7 +214,7 @@ class Portfolio:
         Genera un informe simplificado y austero de la cartera en formato Markdown.
         
         Este informe se centra en el rendimiento agregado de la cartera,
-        la composición de pesos, matriz de correlación y el Value at Risk (VaR).
+        la composición de pesos y el Value at Risk (VaR).
         
         Parámetros:
         -----------
@@ -272,61 +272,6 @@ class Portfolio:
             lines.append(f"| {ticker:<6} | {weight*100:>6.2f}% | {contribucion:>10.4f}%      |")
         
         lines.append("")
-        
-        # ===== MATRIZ DE CORRELACIÓN =====
-        lines.append("## 🔗 Matriz de Correlación entre Activos")
-        lines.append("")
-        lines.append("Muestra cómo se relacionan los movimientos de los activos entre sí (valores entre -1 y 1).")
-        lines.append("")
-        
-        # Crear encabezado de la tabla
-        tickers = list(self.corr_matrix.columns)
-        header = "| " + " | ".join([f"{ticker:>7}" for ticker in [""] + tickers]) + " |"
-        separator = "|" + "|".join([":-------:" for _ in range(len(tickers) + 1)]) + "|"
-        
-        lines.append(header)
-        lines.append(separator)
-        
-        # Agregar filas con valores de correlación
-        for i, ticker_row in enumerate(tickers):
-            row_values = [f"{ticker_row:>7}"]
-            for ticker_col in tickers:
-                corr_value = self.corr_matrix.loc[ticker_row, ticker_col]
-                row_values.append(f"{corr_value:>7.3f}")
-            lines.append("| " + " | ".join(row_values) + " |")
-        
-        lines.append("")
-        lines.append("**Interpretación:**")
-        lines.append("- Valores cercanos a **1**: Los activos se mueven en la misma dirección (correlación positiva fuerte)")
-        lines.append("- Valores cercanos a **0**: No hay relación lineal clara entre los activos")
-        lines.append("- Valores cercanos a **-1**: Los activos se mueven en direcciones opuestas (correlación negativa fuerte)")
-        lines.append("")
-        
-        # Análisis de diversificación
-        # Calcular correlación promedio excluyendo la diagonal
-        corr_values = []
-        for i in range(len(tickers)):
-            for j in range(i+1, len(tickers)):
-                corr_values.append(self.corr_matrix.iloc[i, j])
-        
-        if corr_values:
-            avg_corr = np.mean(corr_values)
-            max_corr = max(corr_values)
-            min_corr = min(corr_values)
-            
-            lines.append("**Análisis de Diversificación:**")
-            lines.append(f"- Correlación promedio entre activos: **{avg_corr:.3f}**")
-            lines.append(f"- Correlación máxima: **{max_corr:.3f}**")
-            lines.append(f"- Correlación mínima: **{min_corr:.3f}**")
-            
-            if avg_corr < 0.3:
-                lines.append("- ✅ **Buena diversificación**: Los activos tienen baja correlación entre sí")
-            elif avg_corr < 0.7:
-                lines.append("- ⚠️ **Diversificación moderada**: Los activos tienen cierta correlación")
-            else:
-                lines.append("- ❌ **Baja diversificación**: Los activos están altamente correlacionados")
-            
-            lines.append("")
         
         # ===== VALUE AT RISK (VaR) =====
         if incluir_var:

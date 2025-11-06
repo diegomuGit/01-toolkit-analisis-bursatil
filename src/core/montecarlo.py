@@ -78,7 +78,7 @@ class MonteCarloSimulacion:
                 returns_df = self.objeto.returns_df
 
             mu_vector = returns_df.mean()    # Vector de medias (drift)
-            cov_matrix = self.objeto.cov_matrix    # Matriz de Covarianza desde Portfolio
+            cov_matrix = returns_df.cov()   # Matriz de Covarianza desde Portfolio
 
             n_assets = len(mu_vector)
             pesos = pd.Series(self.objeto.weights)
